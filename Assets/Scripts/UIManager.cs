@@ -72,8 +72,9 @@ public class UIManager : MonoBehaviour
         AddButton(reconstructCanvas.transform, "Reconstruct", new Color(0.85f, 0.55f, 0.15f), new Vector2(0, -60), () =>
         {
             Destroy(reconstructCanvas);
-            PlayClip(2);
-            sequence.Run(placement.GetRuinPosition(), placement.GetRuinRotation(), ShowStoryDeferred);
+            var p = placement.GetRuinPosition();
+            var r = placement.GetRuinRotation();
+            sequence.Run(p, r, ShowStoryDeferred);
             placement.DestroyRuin();
         });
     }

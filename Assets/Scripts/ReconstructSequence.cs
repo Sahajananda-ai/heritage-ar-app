@@ -32,22 +32,16 @@ public class ReconstructSequence : MonoBehaviour
         // PHASE 1 wireframe - scale+fade in, hold 1s
         GameObject wirePrefab = wireframePrefab != null ? wireframePrefab : solidPrefab;
         wireframeModel = Instantiate(wirePrefab, pos, rot);
-        // fix scale factor like old project
-        var solidBounds = solidPrefab != null ? solidPrefab.GetComponentInChildren<Renderer>() : null;
         var wireRend = wireframeModel.GetComponentInChildren<Renderer>();
         float scaleFactor = 1f;
-        // estimate using instantiated bounds after frame
-        yield return null;
         if (wireRend != null)
         {
             float h = wireRend.bounds.size.y;
             if (h > 0.01f) scaleFactor = 0.6f / h;
             Debug.Log("[Reconstruct] wire scaleFactor " + scaleFactor + " h " + h);
         }
-
         if (wireframeMat != null) ApplyMaterial(wireframeModel, wireframeMat);
         else Debug.LogWarning("[Reconstruct] wireframeMat is NULL - using original");
-
         wireframeModel.transform.localScale = Vector3.zero;
         SetAlpha(wireframeModel, 0f);
 
@@ -89,7 +83,7 @@ public class ReconstructSequence : MonoBehaviour
         solidModel.GetComponentInChildren<TapInfoHandler>().infoDetails = "World's oldest residential university (5th c. CE). Destroyed 1193 CE. UNESCO World Heritage.";
         solidModel.GetComponentInChildren<TapInfoHandler>().storyCallback = onComplete;
 
-        PlayClip(2); // 03_reconstruct
+        PlayClip(2); // 03_reconstruct - single narration
 
         float t2 = 0f; float d2 = 1.0f;
         while (t2 < 1f)
@@ -104,22 +98,8 @@ public class ReconstructSequence : MonoBehaviour
         SetAlpha(solidModel, 1f);
         Destroy(wireframeModel);
         Debug.Log("[Reconstruct] Solid faded in - tap solid for story");
-
-        PlayClip(3); // 04_details - background narration for solid
-        // Wait before auto-show story: hint already, tap will trigger, auto after 6s
-        // Don't invoke onComplete yet - let tap handle it, but auto after 6s
-        float wait = 0f;
-        while (wait < 6f)
-        {
-            // if story already shown via tap, exit
-            if (solidModel == null) yield break;
-            // check if callback already invoked (UIManager will set)
-            // we leave auto fallback to UIManager's delayed - here just wait
-            wait += Time.deltaTime;
-            yield return null;
-        }
-        // auto trigger if not yet tapped
-        if (onComplete != null) onComplete.Invoke();
+        // let tap handler trigger story; auto fallback handled by UIManager (6s)
+        // don't play 04_details here - UIManager will play on story show
     }
 
     void ApplyMaterial(GameObject go, Material mat)
