@@ -9,6 +9,8 @@ public class UIManager : MonoBehaviour
     ReconstructSequence sequence;
     GameObject homeCanvas, reconstructCanvas, storyCanvas;
 
+    GameObject hintCanvas;
+
     void Awake()
     {
         Instance = this;
@@ -16,9 +18,26 @@ public class UIManager : MonoBehaviour
         {
             var es = new GameObject("EventSystem");
             es.AddComponent<UnityEngine.EventSystems.EventSystem>();
+#if ENABLE_INPUT_SYSTEM
+            es.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+#else
             es.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+#endif
+        }
+        else
+        {
+            // Fix existing EventSystem that has wrong module
+            var es = FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>();
+            if (es.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>() == null
+                && es.GetComponent<UnityEngine.EventSystems.StandaloneInputModule>() != null)
+            {
+                Destroy(es.GetComponent<UnityEngine.EventSystems.StandaloneInputModule>());
+                es.gameObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+            }
         }
     }
+
+    public void HideHint() { if (hintCanvas != null) Destroy(hintCanvas); }
 
     void Start()
     {
@@ -36,6 +55,10 @@ public class UIManager : MonoBehaviour
         AddButton(homeCanvas.transform, "Begin", new Color(0.85f, 0.55f, 0.15f), new Vector2(0, -40), () =>
         {
             Destroy(homeCanvas);
+            // Show hint after Begin
+            hintCanvas = CreateCanvas("HintCanvas");
+            AddText(hintCanvas.transform, "Move phone to scan floor...", 22, Color.white, new Vector2(0, 60));
+            AddText(hintCanvas.transform, "Tap on plane to place ruin", 18, Color.yellow, new Vector2(0, 20));
         });
     }
 
