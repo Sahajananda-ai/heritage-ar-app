@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.EnhancedTouch;
+using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 public class UIManager : MonoBehaviour
 {
@@ -94,7 +95,7 @@ public class UIManager : MonoBehaviour
         bool tapped = false;
         while (wait < 5f)
         {
-            if (Input.touchCount > 0 && Input.GetTouch(0).phase == UnityEngine.TouchPhase.Began) tapped = true;
+            if (Input.touchCount > 0 && Input.GetTouch(0).phase == UnityEngine.TouchPhase.Began) { tapped = true; }
             if (tapped) break;
             if (Touch.activeTouches.Count > 0 && Touch.activeTouches[0].phase == UnityEngine.InputSystem.TouchPhase.Began) { tapped = true; break; }
             if (Input.GetMouseButtonDown(0)) { tapped = true; break; }
