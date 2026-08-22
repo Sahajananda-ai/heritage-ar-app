@@ -53,7 +53,7 @@ public class ARPlacement : MonoBehaviour
         else
         {
             // Fallback: old Input (if Both mode) + mouse for editor
-            if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+            if (Input.touchCount > 0 && Input.GetTouch(0).phase == UnityEngine.TouchPhase.Began)
             {
                 touchPos = Input.GetTouch(0).position;
                 began = true;
