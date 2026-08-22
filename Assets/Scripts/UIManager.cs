@@ -11,8 +11,8 @@ public class UIManager : MonoBehaviour
     ARPlacement placement;
     ReconstructSequence sequence;
     GameObject homeCanvas, reconstructCanvas, storyCanvas;
-
     GameObject hintCanvas;
+    AudioSource audioSource;
 
     void Awake()
     {
@@ -29,7 +29,6 @@ public class UIManager : MonoBehaviour
         }
         else
         {
-            // Fix existing EventSystem that has wrong module
             var es = FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>();
             if (es.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>() == null
                 && es.GetComponent<UnityEngine.EventSystems.StandaloneInputModule>() != null)
@@ -38,6 +37,8 @@ public class UIManager : MonoBehaviour
                 es.gameObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
             }
         }
+        audioSource = gameObject.AddComponent<AudioSource>();
+        if (!EnhancedTouchSupport.enabled) EnhancedTouchSupport.Enable();
     }
 
     public void HideHint() { if (hintCanvas != null) Destroy(hintCanvas); }
@@ -54,11 +55,11 @@ public class UIManager : MonoBehaviour
         homeCanvas = CreateCanvas("HomeCanvas");
         AddOverlay(homeCanvas.transform, new Color(0.05f, 0.05f, 0.1f, 0.95f));
         AddText(homeCanvas.transform, "BHARAT AR", 48, Color.white, new Vector2(0, 100));
-        AddText(homeCanvas.transform, "Tap floor to place stupa", 24, Color.grey, new Vector2(0, 40));
+        AddText(homeCanvas.transform, "Living Heritage Platform", 20, new Color(0.85f, 0.7f, 0.5f), new Vector2(0, 40));
         AddButton(homeCanvas.transform, "Begin", new Color(0.85f, 0.55f, 0.15f), new Vector2(0, -40), () =>
         {
             Destroy(homeCanvas);
-            // Show hint after Begin
+            PlayClip(0);
             hintCanvas = CreateCanvas("HintCanvas");
             AddText(hintCanvas.transform, "Move phone to scan floor...", 22, Color.white, new Vector2(0, 60));
             AddText(hintCanvas.transform, "Tap on plane to place ruin", 18, Color.yellow, new Vector2(0, 20));
@@ -71,49 +72,66 @@ public class UIManager : MonoBehaviour
         AddButton(reconstructCanvas.transform, "Reconstruct", new Color(0.85f, 0.55f, 0.15f), new Vector2(0, -60), () =>
         {
             Destroy(reconstructCanvas);
-            sequence.Run(placement.GetRuinPosition(), placement.GetRuinRotation(), ShowStory);
+            PlayClip(2);
+            sequence.Run(placement.GetRuinPosition(), placement.GetRuinRotation(), ShowStoryDeferred);
             placement.DestroyRuin();
         });
     }
 
     bool storyShown;
-    void ShowStory()
+    void ShowStoryDeferred()
     {
         if (storyShown) return;
-        storyShown = true;
-        // Show tap hint instead of instant overlay - user can tap solid to see story
+        // show hint: tap solid for story, auto after 6s handled in ReconstructSequence but also here as fallback
         var tapHint = CreateCanvas("TapHintCanvas");
-        AddText(tapHint.transform, "Tap solid to learn story", 20, Color.yellow, new Vector2(0, -120));
-        StartCoroutine(ShowStoryDelayed(tapHint));
+        AddText(tapHint.transform, "Tap the solid model for history  •  Auto in 6s", 18, Color.yellow, new Vector2(0, -100));
+        StartCoroutine(ShowStoryAfterDelay(tapHint, 6f));
     }
 
-    System.Collections.IEnumerator ShowStoryDelayed(GameObject hint)
+    System.Collections.IEnumerator ShowStoryAfterDelay(GameObject hint, float delay)
     {
-        if (!EnhancedTouchSupport.enabled) EnhancedTouchSupport.Enable();
-        // Wait for tap OR 5s auto-show
-        float wait = 0f;
-        bool tapped = false;
-        while (wait < 5f)
+        float t = 0f;
+        while (t < delay)
         {
-            if (Input.touchCount > 0 && Input.GetTouch(0).phase == UnityEngine.TouchPhase.Began) { tapped = true; }
-            if (tapped) break;
-            if (Touch.activeTouches.Count > 0 && Touch.activeTouches[0].phase == UnityEngine.InputSystem.TouchPhase.Began) { tapped = true; break; }
-            if (Input.GetMouseButtonDown(0)) { tapped = true; break; }
-            if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame) { tapped = true; break; }
-            wait += Time.deltaTime;
+            if (storyShown) { if (hint != null) Destroy(hint); yield break; }
+            t += Time.deltaTime;
             yield return null;
         }
         if (hint != null) Destroy(hint);
+        ForceShowStory();
+    }
+
+    public void ForceShowStory()
+    {
+        if (storyShown) return;
+        storyShown = true;
+        // kill tap hint
+        var hint = GameObject.Find("TapHintCanvas");
+        if (hint != null) Destroy(hint);
         storyCanvas = CreateCanvas("StoryCanvas");
-        AddOverlay(storyCanvas.transform, new Color(0.05f, 0.05f, 0.1f, 0.9f));
-        AddText(storyCanvas.transform, "NALANDA", 48, new Color(0.85f, 0.7f, 0.4f), new Vector2(0, 120));
-        AddText(storyCanvas.transform, "World's first residential university.\nFounded 5th century CE.\nDestroyed 1193 CE.\nUNESCO World Heritage Site.", 22, Color.white, new Vector2(0, 0));
-        AddButton(storyCanvas.transform, "Restart", new Color(0.2f, 0.6f, 0.4f), new Vector2(0, -140), () =>
+        AddOverlay(storyCanvas.transform, new Color(0.05f, 0.05f, 0.1f, 0.92f));
+        AddText(storyCanvas.transform, "NALANDA", 44, new Color(0.85f, 0.7f, 0.4f), new Vector2(0, 110));
+        // brief history
+        var story = "World's first residential university (5th century CE).\n10,000 students & 2,000 teachers from across Asia.\nAncient library held 9 million manuscripts.\nDestroyed 1193 CE — now UNESCO World Heritage.";
+        var txt = AddText(storyCanvas.transform, story, 19, Color.white, new Vector2(0, 0));
+        txt.GetComponent<RectTransform>().sizeDelta = new Vector2(650, 180);
+        AddButton(storyCanvas.transform, "Restart", new Color(0.2f, 0.6f, 0.4f), new Vector2(0, -150), () =>
         {
             Destroy(storyCanvas);
             storyShown = false;
+            PlayClip(4);
             UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
         });
+        PlayClip(3);
+    }
+
+    void PlayClip(int idx)
+    {
+        string[] names = { "01_intro", "02_ruin", "03_reconstruct", "04_details", "05_closing" };
+        var clip = Resources.Load<AudioClip>("Audio/" + names[idx]);
+        if (clip == null) { Debug.Log("[UI] clip not found " + names[idx]); return; }
+        audioSource.clip = clip;
+        audioSource.Play();
     }
 
     GameObject CreateCanvas(string name)
