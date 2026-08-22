@@ -20,45 +20,42 @@ public class ReconstructSequence : MonoBehaviour
         Debug.Log("[Reconstruct] Phase 1: Wireframe appearing");
 
         wireframeModel = Instantiate(wireframePrefab, pos, rot);
-        ApplyMaterial(wireframeModel, wireframeMat);
+        if (wireframeMat != null) ApplyMaterial(wireframeModel, wireframeMat);
         wireframeModel.transform.localScale = Vector3.zero;
-
+        SetAlpha(wireframeModel, 0f);
+        // fade in + scale fast
         float t = 0f;
+        float d1 = 0.5f;
         while (t < 1f)
         {
-            t += Time.deltaTime / 2f;
+            t += Time.deltaTime / d1;
             float e = t * t * (3f - 2f * t);
             wireframeModel.transform.localScale = Vector3.one * e;
+            SetAlpha(wireframeModel, e);
             yield return null;
         }
         wireframeModel.transform.localScale = Vector3.one;
+        SetAlpha(wireframeModel, 1f);
 
-        yield return new WaitForSeconds(0.5f);
+        yield return new WaitForSeconds(0.25f);
 
-        Debug.Log("[Reconstruct] Phase 2: Solid rising from below");
-        solidModel = Instantiate(solidPrefab, pos + Vector3.down * 2f, rot);
-        ApplyMaterial(solidModel, solidMat);
+        Debug.Log("[Reconstruct] Phase 2: Solid fading in (wireframe fading out) - fast");
+        solidModel = Instantiate(solidPrefab, pos, rot);
+        // KEEP original textured materials - just make them transparent for fade
+        MakeTransparent(solidModel);
+        SetAlpha(solidModel, 0f);
 
         float t2 = 0f;
-        Vector3 startPos = solidModel.transform.position;
-        Vector3 endPos = pos;
+        float d2 = 0.9f;
         while (t2 < 1f)
         {
-            t2 += Time.deltaTime / 2f;
+            t2 += Time.deltaTime / d2;
             float e = t2 * t2 * (3f - 2f * t2);
-            solidModel.transform.position = Vector3.Lerp(startPos, endPos, e);
+            SetAlpha(solidModel, e);
+            SetAlpha(wireframeModel, 1f - e);
             yield return null;
         }
-        solidModel.transform.position = endPos;
-
-        Debug.Log("[Reconstruct] Phase 3: Wireframe fading out");
-        float t3 = 0f;
-        while (t3 < 1f)
-        {
-            t3 += Time.deltaTime / 1f;
-            SetAlpha(wireframeModel, 1f - t3);
-            yield return null;
-        }
+        SetAlpha(solidModel, 1f);
         Destroy(wireframeModel);
 
         Debug.Log("[Reconstruct] DONE");
@@ -72,6 +69,30 @@ public class ReconstructSequence : MonoBehaviour
             var mats = new Material[r.materials.Length];
             for (int i = 0; i < mats.Length; i++) mats[i] = mat;
             r.materials = mats;
+        }
+    }
+
+    void MakeTransparent(GameObject go)
+    {
+        foreach (var r in go.GetComponentsInChildren<Renderer>())
+        {
+            foreach (var m in r.materials)
+            {
+                // Enable transparency for URP Lit
+                if (m.HasProperty("_Surface"))
+                    m.SetFloat("_Surface", 1f); // 1 = Transparent
+                if (m.HasProperty("_Blend"))
+                    m.SetFloat("_Blend", 0f); // 0 = Alpha
+                if (m.HasProperty("_SrcBlend"))
+                    m.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                if (m.HasProperty("_DstBlend"))
+                    m.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                if (m.HasProperty("_ZWrite"))
+                    m.SetFloat("_ZWrite", 0f);
+                m.renderQueue = 3000;
+                m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                m.EnableKeyword("_ALPHAPREMULTIPLY_ON");
+            }
         }
     }
 
@@ -94,6 +115,9 @@ public class ReconstructSequence : MonoBehaviour
                     c.a = a;
                     m.color = c;
                 }
+                // Also handle _BaseColor alpha for URP
+                if (m.HasProperty("_Alpha"))
+                    m.SetFloat("_Alpha", a);
             }
         }
     }
