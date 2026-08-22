@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.EnhancedTouch;
 
 public class UIManager : MonoBehaviour
 {
@@ -73,8 +75,34 @@ public class UIManager : MonoBehaviour
         });
     }
 
+    bool storyShown;
     void ShowStory()
     {
+        if (storyShown) return;
+        storyShown = true;
+        // Show tap hint instead of instant overlay - user can tap solid to see story
+        var tapHint = CreateCanvas("TapHintCanvas");
+        AddText(tapHint.transform, "Tap solid to learn story", 20, Color.yellow, new Vector2(0, -120));
+        StartCoroutine(ShowStoryDelayed(tapHint));
+    }
+
+    System.Collections.IEnumerator ShowStoryDelayed(GameObject hint)
+    {
+        if (!EnhancedTouchSupport.enabled) EnhancedTouchSupport.Enable();
+        // Wait for tap OR 5s auto-show
+        float wait = 0f;
+        bool tapped = false;
+        while (wait < 5f)
+        {
+            if (Input.touchCount > 0 && Input.GetTouch(0).phase == UnityEngine.TouchPhase.Began) tapped = true;
+            if (tapped) break;
+            if (Touch.activeTouches.Count > 0 && Touch.activeTouches[0].phase == UnityEngine.InputSystem.TouchPhase.Began) { tapped = true; break; }
+            if (Input.GetMouseButtonDown(0)) { tapped = true; break; }
+            if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame) { tapped = true; break; }
+            wait += Time.deltaTime;
+            yield return null;
+        }
+        if (hint != null) Destroy(hint);
         storyCanvas = CreateCanvas("StoryCanvas");
         AddOverlay(storyCanvas.transform, new Color(0.05f, 0.05f, 0.1f, 0.9f));
         AddText(storyCanvas.transform, "NALANDA", 48, new Color(0.85f, 0.7f, 0.4f), new Vector2(0, 120));
@@ -82,6 +110,7 @@ public class UIManager : MonoBehaviour
         AddButton(storyCanvas.transform, "Restart", new Color(0.2f, 0.6f, 0.4f), new Vector2(0, -140), () =>
         {
             Destroy(storyCanvas);
+            storyShown = false;
             UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
         });
     }

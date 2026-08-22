@@ -17,7 +17,12 @@ public class ReconstructSequence : MonoBehaviour
 
     IEnumerator DoSequence(Vector3 pos, Quaternion rot, System.Action onComplete)
     {
-        Debug.Log("[Reconstruct] Phase 1: Wireframe appearing");
+        // FIX rotation: keep upright - ignore plane tilt, keep only Y yaw
+        rot = Quaternion.Euler(0, rot.eulerAngles.y, 0);
+        // If model exported lying down, add 90 deg correction: uncomment next line
+        // rot *= Quaternion.Euler(-90, 0, 0);
+
+        Debug.Log("[Reconstruct] Phase 1: Wireframe appearing at " + pos + " rot " + rot.eulerAngles);
 
         wireframeModel = Instantiate(wireframePrefab, pos, rot);
         if (wireframeMat != null) ApplyMaterial(wireframeModel, wireframeMat);
@@ -37,7 +42,7 @@ public class ReconstructSequence : MonoBehaviour
         wireframeModel.transform.localScale = Vector3.one;
         SetAlpha(wireframeModel, 1f);
 
-        yield return new WaitForSeconds(0.25f);
+        yield return new WaitForSeconds(1.0f); // hold wireframe visible 1s
 
         Debug.Log("[Reconstruct] Phase 2: Solid fading in (wireframe fading out) - fast");
         solidModel = Instantiate(solidPrefab, pos, rot);
@@ -58,7 +63,8 @@ public class ReconstructSequence : MonoBehaviour
         SetAlpha(solidModel, 1f);
         Destroy(wireframeModel);
 
-        Debug.Log("[Reconstruct] DONE");
+        Debug.Log("[Reconstruct] DONE - solid visible, wait before story");
+        yield return new WaitForSeconds(3.0f); // let user explore solid 3s before story
         onComplete?.Invoke();
     }
 

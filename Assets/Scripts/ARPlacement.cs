@@ -77,7 +77,9 @@ public class ARPlacement : MonoBehaviour
         {
             Pose hitPose = hits[0].pose;
             if (ruinPrefab == null) { Debug.LogError("[AR] ruinPrefab is NULL! Assign in Inspector"); return; }
-            spawnedRuin = Instantiate(ruinPrefab, hitPose.position, hitPose.rotation);
+            // Keep upright: ignore plane tilt, keep only Y yaw
+            Quaternion uprightRot = Quaternion.Euler(0, hitPose.rotation.eulerAngles.y, 0);
+            spawnedRuin = Instantiate(ruinPrefab, hitPose.position, uprightRot);
             
             if (planeManager != null)
                 foreach (var plane in planeManager.trackables)
